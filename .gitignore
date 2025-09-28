@@ -13,3 +13,6 @@ data/last_update.json
 logs/
 *.log
 *.log.*
+__pycache__/
+*/__pycache__/
+**/__pycache__/
