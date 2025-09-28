@@ -1,0 +1,5 @@
+
+# Database files (exclude from Git)
+data/db/*.db
+data/db/*.db-wal
+data/db/*.db-shm
