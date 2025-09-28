@@ -1,0 +1,35 @@
+# Database Manager - Python Requirements
+# Core application dependencies for stock data management
+
+# GUI Framework
+customtkinter>=5.2.0
+
+# Data Processing
+pandas>=2.0.0
+numpy>=1.24.0
+
+# Financial Data
+yfinance>=0.2.18
+
+# Database (if using SQLAlchemy for advanced features)
+sqlalchemy>=2.0.0
+
+# Data Visualization (for potential future charting features)
+matplotlib>=3.7.0
+plotly>=5.17.0
+
+# macOS Menu Bar Integration
+rumps>=0.4.0
+
+# System Information and Process Management
+psutil>=5.9.0
+
+# macOS Integration
+pyobjc-framework-Cocoa>=10.0
+pyobjc-framework-UserNotifications>=10.0
+
+# Scheduling (if implementing custom scheduling beyond LaunchAgent)
+# schedule>=1.2.0
+
+# Note: Some packages may be included for future features
+# Remove unused packages after confirming they're not needed
