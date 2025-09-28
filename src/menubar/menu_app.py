@@ -19,7 +19,7 @@ logger = get_logger(__name__, "menubar.log")
 
 class NiftyMenuBarApp(rumps.App):
     """Menu bar application for stock monitoring with visual feedback"""
-    
+
     def __init__(self):
         super(NiftyMenuBarApp, self).__init__(
             name="Database Manager",
@@ -29,55 +29,55 @@ class NiftyMenuBarApp(rumps.App):
 
         # Hide from dock
         rumps.App.hide_dock_icon = True
-        
+
         self.notification_manager = NotificationManager()
         self.is_updating = False
         self.last_status_check = None
-        
+
         # Animation state for visual feedback
         self.is_animating = False
         self.animation_thread = None
         self.base_icon = "📊"
         self.animation_frames = ["📊🔄", "📊⏳", "📊🔃", "📊⌛"]
         self.current_frame = 0
-        
+
         # Initialize database
         try:
             db_manager.initialize()
             logger.info("Database initialized for menu bar app")
         except Exception as e:
             logger.error(f"Database initialization failed: {e}")
-        
+
         # Setup menu
         self.setup_menu()
-        
+
         # Start status monitoring
         self.start_status_monitoring()
-        
+
         logger.info("Menu bar app initialized")
-    
+
     def start_animation(self, operation_name="Working"):
         """Start the spinning animation"""
         if self.is_animating:
             return
-            
+
         self.is_animating = True
         self.current_frame = 0
-        
+
         def animate():
             while self.is_animating:
                 if self.is_animating:  # Double check
                     self.title = self.animation_frames[self.current_frame]
                     self.current_frame = (self.current_frame + 1) % len(self.animation_frames)
                 time.sleep(0.5)  # Change frame every 500ms
-        
+
         self.animation_thread = threading.Thread(target=animate, daemon=True)
         self.animation_thread.start()
-        
+
         # Update status to show what's happening
         if hasattr(self, 'status_item'):
             self.status_item.title = f"🔄 {operation_name}..."
-    
+
     def stop_animation(self):
         """Stop the spinning animation"""
         self.is_animating = False
@@ -85,46 +85,51 @@ class NiftyMenuBarApp(rumps.App):
             self.animation_thread = None
         # Restore base icon
         self.title = "📊"
-    
+
     def set_loading_state(self, message="Loading"):
         """Set the menu bar to loading state"""
         self.start_animation(message)
-    
+
     def clear_loading_state(self):
         """Clear the loading state"""
         self.stop_animation()
         # Update status immediately
         threading.Thread(target=self.update_status, daemon=True).start()
-    
+
     def setup_menu(self):
         """Setup the menu bar menu"""
-        
+
         # Status item (will be updated dynamically)
         self.status_item = rumps.MenuItem("🔄 Checking status...")
         self.menu.add(self.status_item)
-        
+
         # Separator
         self.menu.add(rumps.separator)
-        
+
         # Actions
         self.menu.add(rumps.MenuItem("📊 Open GUI", callback=self.open_gui))
-        self.menu.add(rumps.MenuItem("🔄 Update Data", callback=self.update_data))
+        # Create update submenu
+        update_menu = rumps.MenuItem("🔄 Update Options")
+        update_menu.add(rumps.MenuItem("Incremental Update", callback=self.incremental_update))
+        update_menu.add(rumps.MenuItem("Check Update Plan", callback=self.check_update_plan))
+        update_menu.add(rumps.MenuItem("Full Refresh", callback=self.full_refresh))
+        self.menu.add(update_menu)
         self.menu.add(rumps.MenuItem("📈 Quick Stats", callback=self.show_stats))
-        
+
         # Separator
         self.menu.add(rumps.separator)
-        
+
         # Settings
         self.menu.add(rumps.MenuItem("⚙️ Preferences", callback=self.open_preferences))
         self.menu.add(rumps.MenuItem("📋 View Logs", callback=self.view_logs))
-        
+
         # Separator
         self.menu.add(rumps.separator)
-        
+
         # Help & About
         self.menu.add(rumps.MenuItem("ℹ️ About", callback=self.show_about))
         self.menu.add(rumps.MenuItem("❌ Quit", callback=self.quit_app))
-    
+
     def start_status_monitoring(self):
         """Start background status monitoring"""
         def monitor():
@@ -136,31 +141,31 @@ class NiftyMenuBarApp(rumps.App):
                 except Exception as e:
                     logger.error(f"Status monitoring error: {e}")
                     time.sleep(60)
-        
+
         monitor_thread = threading.Thread(target=monitor, daemon=True)
         monitor_thread.start()
-    
+
     def update_status(self):
         """Update menu bar status - FIXED VERSION"""
         try:
             stats = db_manager.get_database_stats()
-            
+
             if not stats or stats.get('total_records', 0) == 0:
                 self.title = "📊❌"
                 self.status_item.title = "❌ No data available"
                 return
-            
+
             # Get record counts
             unique_tickers = stats.get('unique_tickers', 0)
             latest_date = stats.get('latest_date', '')
-            
+
             # Check if we have recent data by looking at latest_date
             if latest_date:
                 try:
                     # Parse the latest date (format: YYYY-MM-DD)
                     latest_dt = datetime.strptime(latest_date, '%Y-%m-%d')
                     days_old = (datetime.now() - latest_dt).days
-                    
+
                     # Determine status based on data age
                     if days_old <= 3:
                         self.title = "📊✅"
@@ -174,7 +179,7 @@ class NiftyMenuBarApp(rumps.App):
                     else:
                         self.title = "📊❌"
                         status_text = f"❌ Stale data ({unique_tickers} tickers, {days_old}d old)"
-                        
+
                 except Exception as e:
                     logger.warning(f"Date parsing failed: {e}")
                     # Fallback - we have data, show green
@@ -184,45 +189,45 @@ class NiftyMenuBarApp(rumps.App):
                 # No date info but we have data
                 self.title = "📊✅"
                 status_text = f"✅ Data available ({unique_tickers} tickers)"
-            
+
             self.status_item.title = status_text
             self.last_status_check = datetime.now()
-            
+
         except Exception as e:
             logger.error(f"Status update failed: {e}")
             self.title = "📊❌"
             self.status_item.title = "❌ Status check failed"
-    
+
     @rumps.clicked("📊 Open GUI")
     def open_gui(self, _):
         """Open the main GUI application"""
         try:
             # Show loading state
             self.set_loading_state("Opening GUI")
-            
+
             import os
             import subprocess
             from pathlib import Path
-            
+
             # Get the correct paths
             app_dir = Path(__file__).parent.parent.parent
             gui_script = app_dir / "run_gui.py"
             python_exe = app_dir / "data_env" / "bin" / "python3"
-            
+
             if not gui_script.exists():
                 self.clear_loading_state()
                 rumps.alert("GUI Not Found", f"Could not find GUI script at {gui_script}")
                 logger.error(f"GUI script not found at {gui_script}")
                 return
-            
+
             if not python_exe.exists():
                 # Fallback to system python
                 python_exe = "python3"
-            
+
             # Launch GUI in background
             env = os.environ.copy()
             env['TK_SILENCE_DEPRECATION'] = '1'
-            
+
             process = subprocess.Popen(
                 [str(python_exe), str(gui_script)],
                 cwd=str(app_dir),
@@ -231,15 +236,15 @@ class NiftyMenuBarApp(rumps.App):
                 stderr=subprocess.PIPE,
                 start_new_session=True
             )
-            
+
             logger.info(f"GUI application launched with PID {process.pid}")
-            
+
             # Clear loading state after delay
             def clear_after_delay():
                 time.sleep(2)
                 self.clear_loading_state()
             threading.Thread(target=clear_after_delay, daemon=True).start()
-            
+
         except FileNotFoundError as e:
             error_msg = f"File not found: {e}"
             logger.error(error_msg)
@@ -250,71 +255,69 @@ class NiftyMenuBarApp(rumps.App):
             logger.error(error_msg)
             self.clear_loading_state()
             rumps.alert("Error", error_msg)
-    
-    @rumps.clicked("🔄 Update Data")
-    def update_data(self, _):
-        """Start data update"""
-        if self.is_updating:
-            rumps.alert("Update in Progress", "Data update is already running")
-            return
-        
-        # Confirm update
-        response = rumps.alert(
-            title="Update Data",
-            message="This will fetch the latest stock data. Continue?",
-            ok="Update",
-            cancel="Cancel"
-        )
-        
-        if response == 1:  # OK clicked
-            self.start_update_background()
-    
-    def start_update_background(self):
-        """Start update in background thread with visual feedback"""
+
+
+    def start_update_background(self, incremental=True):
+        """Start update with mode selection"""
         def update():
             try:
                 self.is_updating = True
-                
-                # Start visual feedback
-                self.set_loading_state("Updating Data")
-                
-                logger.info("Starting data update from menu bar")
-                
+
+                mode_text = "Incremental Update" if incremental else "Full Refresh"
+                self.set_loading_state(mode_text)
+
+                logger.info(f"Starting {mode_text.lower()} from menu bar")
+
                 # Show start notification
                 self.notification_manager.show_notification(
-                    "Data Update Started",
-                    "Fetching latest stock data...",
+                    f"{mode_text} Started",
+                    "Fetching stock data...",
                     sound=False
                 )
-                
-                # Perform update
-                success, result = data_fetcher.fetch_all_stocks_concurrent()
-                
+
+                # Perform update with selected mode
+                if incremental:
+                    success, result = data_fetcher.update_stock_data()
+                else:
+                    success, result = data_fetcher.refresh_all_data()
+
                 if success:
-                    message = f"Updated {result.get('successful_fetches', 0)} stocks"
-                    logger.info(f"Update completed successfully: {message}")
-                    
-                    # SAVE UPDATE TIME TO SYNC WITH GUI
+                    total_records = result.get('total_records', 0)
+                    successful_fetches = result.get('successful_fetches', 0)
+                    skipped_fetches = result.get('skipped_fetches', 0)
+
+                    if total_records == 0:
+                        message = "All data was already up to date"
+                        notification_title = "No Updates Needed"
+                    else:
+                        message = f"Updated {successful_fetches} symbols, {total_records:,} new records"
+                        if skipped_fetches > 0 and incremental:
+                            message += f", {skipped_fetches} already current"
+                        notification_title = f"{mode_text} Complete"
+
+                    logger.info(f"{mode_text} completed successfully: {message}")
+
+                    # Save update time for GUI sync
                     self.save_last_update_time()
-                    
+
                     self.notification_manager.show_notification(
-                        "Update Complete ✅",
+                        f"{notification_title} ✅",
                         message,
                         sound=True
                     )
                 else:
                     error_msg = result.get('error', 'Unknown error')
-                    logger.error(f"Update failed: {error_msg}")
-                    
+                    logger.error(f"{mode_text} failed: {error_msg}")
+
                     self.notification_manager.show_notification(
-                        "Update Failed ❌",
+                        f"{mode_text} Failed ❌",
                         f"Error: {error_msg}",
                         sound=True
-    )
-                
+                    )
+
                 # Stop animation and update status
                 self.clear_loading_state()
-                
+
             except Exception as e:
                 logger.error(f"Update error: {e}")
                 self.clear_loading_state()
@@ -325,60 +328,60 @@ class NiftyMenuBarApp(rumps.App):
                 )
             finally:
                 self.is_updating = False
-        
+
         update_thread = threading.Thread(target=update, daemon=True)
         update_thread.start()
-    
+
     @rumps.clicked("📈 Quick Stats")
     def show_stats(self, _):
         """Show quick database statistics"""
         try:
             # Show loading
             self.set_loading_state("Loading Stats")
-            
+
             stats = db_manager.get_database_stats()
-            
+
             # Clear loading
             self.clear_loading_state()
-            
+
             if not stats:
                 rumps.alert("No Data", "No database statistics available")
                 return
-            
+
             stats_text = f"""Total Records: {stats.get('total_records', 0):,}
 Unique Tickers: {stats.get('unique_tickers', 0)}
 Date Range: {stats.get('earliest_date', 'N/A')} to {stats.get('latest_date', 'N/A')}
 Last Updated: {stats.get('last_updated', 'Never')[:10] if stats.get('last_updated') else 'Never'}
 Database Size: {stats.get('database_size_mb', 0):.1f} MB"""
-            
+
             rumps.alert("Database Statistics", stats_text)
-            
+
         except Exception as e:
             logger.error(f"Stats display failed: {e}")
             self.clear_loading_state()
             rumps.alert("Error", f"Failed to get statistics: {e}")
-    
+
     @rumps.clicked("⚙️ Preferences")
     def open_preferences(self, _):
         """Open preferences (launch GUI to settings tab)"""
         try:
             # For now, just open the main GUI
             self.open_gui(_)
-            
+
         except Exception as e:
             logger.error(f"Failed to open preferences: {e}")
             rumps.alert("Error", f"Failed to open preferences: {e}")
-    
+
     @rumps.clicked("📋 View Logs")
     def view_logs(self, _):
         """Open log directory in Finder"""
         try:
             subprocess.Popen(["open", str(config.LOGS_DIR)])
-            
+
         except Exception as e:
             logger.error(f"Failed to open logs: {e}")
             rumps.alert("Error", f"Failed to open logs: {e}")
-    
+
     @rumps.clicked("ℹ️ About")
     def show_about(self, _):
         """Show about information"""
@@ -394,9 +397,9 @@ Features:
 
 Database: {config.DB_PATH}
 Logs: {config.LOGS_DIR}"""
-        
+
         rumps.alert("About Database Manager", about_text)
-    
+
     @rumps.clicked("❌ Quit")
     def quit_app(self, _):
         """Quit the application"""
@@ -409,10 +412,10 @@ Logs: {config.LOGS_DIR}"""
             )
             if response != 1:  # Cancel clicked
                 return
-        
+
         # Stop any running animations
         self.is_animating = False
-        
+
         logger.info("Menu bar app quitting")
         rumps.quit_application()
 
@@ -423,29 +426,110 @@ Logs: {config.LOGS_DIR}"""
             import json
             from datetime import datetime
             from pathlib import Path
-            
+
             # Get the app directory (same path as status panel)
             app_dir = Path(__file__).parent.parent.parent
             status_file = app_dir / 'data' / 'last_update.json'
-            
+
             # Ensure data directory exists
             os.makedirs(status_file.parent, exist_ok=True)
-            
+
             if update_time is None:
                 update_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-            
+
             data = {
                 'last_update': update_time,
                 'timestamp': datetime.now().isoformat()
             }
-            
+
             with open(status_file, 'w') as f:
                 json.dump(data, f, indent=2)
-                
+
             logger.info(f"Menu bar: Saved last update time: {update_time}")
-            
+
         except Exception as e:
             logger.error(f"Menu bar: Could not save last update time: {e}")
+
+    @rumps.clicked("Check Update Plan")
+    def check_update_plan(self, _):
+        """Show update plan without executing"""
+        try:
+            self.set_loading_state("Analyzing")
+            plan = data_fetcher.get_update_plan()
+
+            total_symbols = plan['total_symbols']
+            need_full = len(plan['symbols_needing_full_fetch'])
+            need_update = len(plan['symbols_needing_update'])
+            up_to_date = len(plan['symbols_up_to_date'])
+
+            if need_full == 0 and need_update == 0:
+                message = f"All {total_symbols} symbols are up to date!"
+                title = "No Updates Needed"
+            else:
+                message = "Update Plan:\n\n"
+                if need_full > 0:
+                    message += f"• {need_full} symbols need full data fetch\n"
+                if need_update > 0:
+                    message += f"• {need_update} symbols need recent data\n"
+                if up_to_date > 0:
+                    message += f"• {up_to_date} symbols are up to date\n"
+                title = "Update Plan"
+
+            self.clear_loading_state()
+            rumps.alert(title, message)
+
+        except Exception as e:
+            self.clear_loading_state()
+            rumps.alert("Error", f"Failed to get update plan: {e}")
+
+    @rumps.clicked("Incremental Update")
+    def incremental_update(self, _):
+        """Start incremental data update"""
+        if self.is_updating:
+            rumps.alert("Update in Progress", "Data update is already running")
+            return
+
+        try:
+            # Get update plan first
+            plan = data_fetcher.get_update_plan()
+            need_update = len(plan['symbols_needing_full_fetch']) + len(plan['symbols_needing_update'])
+
+            if need_update == 0:
+                rumps.alert("No Updates Needed", "All data is up to date!")
+                return
+
+            message = f"Found {need_update} symbols that need updates.\n\nThis will only fetch missing data. Continue?"
+
+        except Exception as e:
+            logger.error(f"Failed to get update plan: {e}")
+            message = "Update stock data with incremental fetch?"
+
+        response = rumps.alert(
+            title="Incremental Update",
+            message=message,
+            ok="Update",
+            cancel="Cancel"
+        )
+
+        if response == 1:  # OK clicked
+            self.start_update_background(incremental=True)
+
+    @rumps.clicked("Full Refresh")
+    def full_refresh(self, _):
+        """Start full data refresh with warning"""
+        if self.is_updating:
+            rumps.alert("Update in Progress", "Data update is already running")
+            return
+
+        response = rumps.alert(
+            title="Full Refresh Warning",
+            message="This will fetch ALL data from scratch.\n\nThis takes much longer and uses more API calls.\n\nOnly use if rebuilding database or suspect corruption.\n\nContinue?",
+            ok="Full Refresh",
+            cancel="Cancel"
+        )
+
+        if response == 1:
+            self.start_update_background(incremental=False)
 
 
 def main():

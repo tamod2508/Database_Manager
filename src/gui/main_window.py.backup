@@ -59,7 +59,7 @@ class MainWindow:
         # Left sidebar
         self.sidebar = ctk.CTkFrame(self.root, width=250, corner_radius=0)
         self.sidebar.grid(row=0, column=0, sticky="nsew")
-        self.sidebar.grid_rowconfigure(5, weight=1)
+        self.sidebar.grid_rowconfigure(4, weight=1)
 
         # App title
         title_label = ctk.CTkLabel(
@@ -114,7 +114,7 @@ class MainWindow:
 
         # Status panel
         self.status_panel = StatusPanel(self.sidebar)
-        self.status_panel.frame.grid(row=5, column=0, padx=20, pady=20, sticky="nsew")
+        self.status_panel.frame.grid(row=4, column=0, padx=20, pady=20, sticky="nsew")
 
         # Main content area
         self.main_frame = ctk.CTkFrame(self.root)
@@ -233,16 +233,59 @@ class MainWindow:
         except Exception as e:
             logger.error(f"Update failed: {e}")
             self.root.after(0, self._update_complete, False, {"error": str(e)}, incremental)
+        def _update_progress(self, progress: float, symbol: str,
+                            successful: int, failed: int):
+            """Update progress callback"""
+            def update_ui():
+                self.progress_var.set(progress)
+                self.status_var.set(f"Processing {symbol}... ({successful} success, {failed} failed)")
 
+            self.root.after(0, update_ui)
 
-    def _update_progress(self, progress: float, symbol: str,
-                        successful: int, failed: int):
-        """Update progress callback"""
-        def update_ui():
-            self.progress_var.set(progress)
-            self.status_var.set(f"Processing {symbol}... ({successful} success, {failed} failed)")
+        def _start_update_thread(self, incremental=True):
+            """Start update in background thread"""
+            self.is_updating = True
 
-        self.root.after(0, update_ui)
+            # Update UI state
+            self.update_button.configure(state="disabled")
+            self.full_refresh_button.configure(state="disabled")
+            self.refresh_button.configure(state="disabled")
+            self.plan_button.configure(state="disabled")
+
+            if incremental:
+                self.update_button.configure(text="Updating...")
+                self.status_var.set("Starting incremental update...")
+            else:
+                self.full_refresh_button.configure(text="Refreshing...")
+                self.status_var.set("Starting full refresh...")
+
+            self.progress_var.set(0)
+
+            # Run in thread
+            thread = threading.Thread(
+                target=self._run_update,
+                args=(incremental,),
+                daemon=True
+            )
+            thread.start()
+
+    def _run_update(self, incremental=True):
+        """Run update with specified mode"""
+        try:
+            if incremental:
+                success, result = data_fetcher.update_stock_data(
+                    update_callback=self._update_progress
+                )
+            else:
+                success, result = data_fetcher.refresh_all_data(
+                    update_callback=self._update_progress
+                )
+
+            self.root.after(0, self._update_complete, success, result, incremental)
+
+        except Exception as e:
+            logger.error(f"Update failed: {e}")
+            self.root.after(0, self._update_complete, False, {"error": str(e)}, incremental)
 
     def _update_complete(self, success: bool, result: Dict, incremental: bool):
         """Handle update completion"""
