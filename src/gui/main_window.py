@@ -4,16 +4,14 @@ Main GUI application window - Fixed Refresh Functionality
 
 import customtkinter as ctk
 import tkinter as tk
-from tkinter import ttk, messagebox
+from tkinter import  messagebox
 import pandas as pd
 import threading
-from typing import Optional, Dict, Any
-import logging
+from typing import Dict
 
 from ..config.settings import config
 from ..core.database_manager import db_manager
 from ..core.data_fetcher import data_fetcher
-from ..core.apple_silicon_optimizer import optimizer
 from ..utils.logger import get_logger
 from .components.data_viewer import DataViewer
 from .components.status_panel import StatusPanel

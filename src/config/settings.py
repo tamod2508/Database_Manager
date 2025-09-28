@@ -66,7 +66,7 @@ class AppConfig:
             result = subprocess.run(['uname', '-m'], 
                                   capture_output=True, text=True)
             return result.stdout.strip() == 'arm64'
-        except:
+        except(subprocess.SubprocessError, FileNotFoundError, OSError):
             return False
     
     @property

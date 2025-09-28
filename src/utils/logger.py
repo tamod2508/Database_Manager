@@ -4,7 +4,6 @@ Logging configuration for the application with visual indicators and custom log 
 
 import logging
 import logging.handlers
-from pathlib import Path
 from typing import Optional, Dict
 
 from ..config.settings import config

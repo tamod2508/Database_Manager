@@ -1,16 +1,16 @@
 # Database Manager
 
-A macOS application for stock data management with automated updates, menu bar integration, and Apple Silicon optimization.
+A macOS application for stock data managementmenu bar integration, and Apple Silicon optimization.
 
 ## Overview
 
-Database Manager is a comprehensive stock data management application designed specifically for macOS. It provides real-time stock data monitoring through an intuitive GUI interface and a convenient menu bar application, with automated weekly data updates and Apple Silicon performance optimizations.
+Database Manager is a comprehensive stock data management application designed specifically for macOS. It provides real-time stock data monitoring through an intuitive GUI interface and a convenient menu bar application and Apple Silicon performance optimizations.
 
 ### Key Features
 
 - **Dual Interface**: Full-featured GUI application and lightweight menu bar monitoring
-- **Automated Updates**: Weekly scheduled data updates via macOS LaunchAgent
 - **Apple Silicon Optimized**: Enhanced performance on M-series chips
+- **Visual Feedback**: Animated menu bar icons showing operation status
 - **Data Management**: SQLite database with performance optimizations
 - **Native Integration**: macOS notifications, auto-startup, and system integration
 
@@ -43,14 +43,17 @@ source data_env/bin/activate
 pip install -r setup/requirements.txt
 ```
 
-### 3. Configure Auto-Startup (Optional)
+### 3. Create Startup Aliases (Optional)
 
-The application can automatically start the menu bar component on login:
+For convenient access, add these aliases to your shell profile:
 
 ```bash
-# Menu bar auto-startup (already configured via LaunchAgent)
-launchctl load ~/Library/LaunchAgents/com.database.menubar.plist
-launchctl start com.database.menubar
+# Add to ~/.zshrc or ~/.bash_profile
+echo 'alias db_gui="cd ~/Desktop/Database_Manager && source data_env/bin/activate && python3 run_gui.py"' >> ~/.zshrc
+echo 'alias db_menu="cd ~/Desktop/Database_Manager && source data_env/bin/activate && python3 run_menubar.py &"' >> ~/.zshrc
+
+# Reload shell configuration
+source ~/.zshrc
 ```
 
 ## Usage
@@ -63,6 +66,9 @@ Launch the main graphical interface:
 cd Database_Manager
 source data_env/bin/activate
 python3 run_gui.py
+
+# Or use the alias (if configured):
+db_gui
 ```
 
 The GUI provides:
@@ -74,18 +80,25 @@ The GUI provides:
 
 ### Menu Bar Application
 
-The menu bar app runs automatically on startup and provides:
+Launch the menu bar monitoring component:
+
+```bash
+cd Database_Manager
+source data_env/bin/activate
+python3 run_menubar.py
+
+# Or use the alias (if configured):
+db_menu
+```
+
+The menu bar app provides:
 
 - Quick access to key functions
 - Visual status indicators
 - One-click data updates
 - System integration
 
-Launch manually:
-
-```bash
-python3 run_menubar.py
-```
+Launch manually when needed.
 
 ### Manual Data Update
 
@@ -181,21 +194,7 @@ python3 run_update.py
 
 ## Automated Operations
 
-### Weekly Data Updates
-
-The application automatically updates stock data every Sunday at 9:00 AM using macOS LaunchAgent:
-
-- **Service**: `com.database.updater`
-- **Schedule**: Weekly (Sunday 9:00 AM)
-- **Logs**: `~/Library/Logs/Database_Manager/update.log`
-
-### Menu Bar Auto-Start
-
-The menu bar component starts automatically on login:
-
-- **Service**: `com.database.menubar`
-- **Behavior**: Start on login, restart on failure
-- **Logs**: `~/Library/Logs/Database_Manager/menubar.log`
+The application includes manual data management capabilities and convenient launcher scripts for regular use.
 
 ## File Structure
 
@@ -220,17 +219,11 @@ Database_Manager/
 
 ## Configuration Files
 
-### LaunchAgent Files
-
-- `~/Library/LaunchAgents/com.database.updater.plist` - Weekly updates
-- `~/Library/LaunchAgents/com.database.menubar.plist` - Menu bar auto-start
-
 ### Log Files
 
 - `Database_Manager/logs/database_manager.log` - General application logs
 - `Database_Manager/logs/menubar.log` - Menu bar specific logs
-- `Database_Manager/logs/GUI.log` - GUI specefic logs
-- `Database_Manager/logs/update.log` - Auto update logs
+- `Database_Manager/logs/GUI.log` - GUI application logs
 
 ## Troubleshooting
 
@@ -239,9 +232,9 @@ Database_Manager/
 **Menu bar app not starting**
 
 ```bash
-launchctl unload ~/Library/LaunchAgents/com.database.menubar.plist
-launchctl load ~/Library/LaunchAgents/com.database.menubar.plist
-launchctl start com.database.menubar
+cd ~/Desktop/Database_Manager
+source data_env/bin/activate
+python3 run_menubar.py
 ```
 
 **Import errors**
@@ -259,13 +252,26 @@ ls -la data/db/
 # Restart application
 ```
 
+### Quick Start Commands
+
+```bash
+# Start GUI application
+cd ~/Desktop/Database_Manager && source data_env/bin/activate && python3 run_gui.py
+
+# Start menu bar application
+cd ~/Desktop/Database_Manager && source data_env/bin/activate && python3 run_menubar.py
+
+# Manual data update
+cd ~/Desktop/Database_Manager && source data_env/bin/activate && python3 run_update.py
+```
+
 ### Log Analysis
 
 Check application logs for detailed error information:
 
 ```bash
-tail -f ~/Library/Logs/Database_Manager/database_manager.log
-tail -f ~/Library/Logs/Database_Manager/menubar.log
+tail -f ~/Desktop/Database_Manager/logs/database_manager.log
+tail -f ~/Desktop/Database_Manager/logs/menubar.log
 ```
 
 ## Performance Optimization

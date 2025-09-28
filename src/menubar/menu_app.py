@@ -4,13 +4,10 @@ Menu bar application using rumps - Enhanced with Visual Feedback
 
 
 import rumps
-from pathlib import Path
 import subprocess
 import threading
 import time
-import logging
 from datetime import datetime
-from typing import Optional
 
 from ..config.settings import config
 from ..core.database_manager import db_manager
@@ -154,7 +151,6 @@ class NiftyMenuBarApp(rumps.App):
                 return
             
             # Get record counts
-            total_records = stats.get('total_records', 0)
             unique_tickers = stats.get('unique_tickers', 0)
             latest_date = stats.get('latest_date', '')
             
