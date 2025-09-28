@@ -3,3 +3,13 @@
 data/db/*.db
 data/db/*.db-wal
 data/db/*.db-shm
+
+# Data files (exclude from Git)
+data/*.csv
+data/last_update.json
+
+
+# All log files 
+logs/
+*.log
+*.log.*
