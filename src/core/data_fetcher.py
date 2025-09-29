@@ -49,6 +49,9 @@ class DataFetcher:
                 logger.error("CSV must contain 'Symbol' column")
                 return []
 
+            df = df.dropna(subset=['Symbol'])  # Remove rows where Symbol is NaN
+            df = df[df['Symbol'].str.strip() != '']  # Remove rows where Symbol is empty string
+
             symbols = [f"{symbol}.NS" for symbol in df['Symbol'].tolist()]
             logger.info(f"Successfully loaded {len(symbols)} symbols from CSV")
             return symbols
