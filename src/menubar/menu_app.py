@@ -390,7 +390,6 @@ Database Size: {stats.get('database_size_mb', 0):.1f} MB"""
 A high-performance stock data management application optimized for Apple Silicon Macs.
 
 Features:
-- Automated weekly data updates
 - Menu bar monitoring with visual feedback
 - Apple Silicon optimizations
 - Real-time data visualization
@@ -523,7 +522,7 @@ Logs: {config.LOGS_DIR}"""
 
         response = rumps.alert(
             title="Full Refresh Warning",
-            message="This will fetch ALL data from scratch.\n\nThis takes much longer and uses more API calls.\n\nOnly use if rebuilding database or suspect corruption.\n\nContinue?",
+            message="This will fetch ALL data from scratch.\n\n\n\nOnly use if rebuilding database or suspect corruption.\n\nContinue?",
             ok="Full Refresh",
             cancel="Cancel"
         )

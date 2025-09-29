@@ -16,6 +16,7 @@ from ..utils.logger import get_logger
 from .components.data_viewer import DataViewer
 from .components.status_panel import StatusPanel
 from .components.settings_panel import SettingsPanel
+from .components.stock_status_viewer import StockStatusViewer
 
 logger = get_logger(__name__, "GUI.log")
 
@@ -127,15 +128,19 @@ class MainWindow:
         self.tabview.grid(row=0, column=0, sticky="nsew", padx=10, pady=10)
 
         # Add tabs
+        status_tab = self.tabview.add("Stock-wise Status")
         data_tab = self.tabview.add("Data Viewer")
         settings_tab = self.tabview.add("Settings")
 
         # Create components in tabs
+        self.settings_panel = SettingsPanel(settings_tab)
+        self.settings_panel.frame.pack(fill="both", expand=True)
+
         self.data_viewer = DataViewer(data_tab)
         self.data_viewer.frame.pack(fill="both", expand=True)
 
-        self.settings_panel = SettingsPanel(settings_tab)
-        self.settings_panel.frame.pack(fill="both", expand=True)
+        self.stock_status_viewer = StockStatusViewer(status_tab)
+        self.stock_status_viewer.frame.pack(fill="both", expand=True)
 
         # Progress bar
         self.progress_var = tk.DoubleVar()
@@ -163,6 +168,8 @@ class MainWindow:
             if not self.current_data.empty:
                 # Update data viewer
                 self.data_viewer.update_data(self.current_data)
+
+                self.stock_status_viewer.refresh_status()
 
                 # Update status
                 unique_tickers = len(self.current_data['ticker'].unique())
@@ -395,9 +402,8 @@ class MainWindow:
             "Only use this if:\n"
             "• You want to rebuild the entire database\n"
             "• You suspect data corruption\n"
-            "• You changed the date range settings\n\n"
-            "For normal updates, use 'Update Data' instead.\n\n"
-            "Continue with FULL REFRESH?"
+            "• You changed the date range settings"
+
         )
 
         if result:
@@ -405,7 +411,7 @@ class MainWindow:
             confirm = messagebox.askyesno(
                 "Final Confirmation",
                 "Are you absolutely sure you want to fetch ALL data from scratch?\n\n"
-                "This cannot be undone and will take much longer."
+                "This cannot be undone and."
             )
             if confirm:
                 self._start_update_thread(incremental=False)

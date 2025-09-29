@@ -64,10 +64,20 @@ class DataFetcher:
 
         start = start_date or self.start_date
         end = end_date or self.end_date
-        # Skip if start date is after end date (no new data needed)
+
+        # Don't fetch today's data - it's incomplete until evening
+        today = datetime.now().date()
+        end_dt = datetime.strptime(end, '%Y-%m-%d').date()
+
+        if end_dt >= today:
+            end = (today - timedelta(days=1)).strftime('%Y-%m-%d')
+            # Skip if start date is after end date (no new data needed)
+
         if start and end and start > end:
             logger.debug(f"No new data needed for {symbol} (start: {start}, end: {end})")
             return None
+
+
 
         try:
             ticker = yf.Ticker(symbol)
@@ -134,17 +144,22 @@ class DataFetcher:
         # Determine fetch strategy
         if full_refresh:
             logger.info(f"Starting FULL REFRESH for {len(symbols)} symbols")
+
             # Use start_date for all symbols
             symbol_date_ranges = {symbol: (self.start_date, self.end_date) for symbol in symbols}
             symbols_to_process = symbols
         else:
             logger.info(f"Starting INCREMENTAL UPDATE for {len(symbols)} symbols")
+
+
             # Get update plan
             plan = self.get_update_plan(symbols)
+
 
             # Only process symbols that need updates
             symbols_to_process = plan['symbols_needing_full_fetch'] + plan['symbols_needing_update']
             symbol_date_ranges = plan['update_ranges']
+
 
             if not symbols_to_process:
                 # No symbols need updates
@@ -304,8 +319,18 @@ class DataFetcher:
                         start_date = next_day.strftime('%Y-%m-%d')
 
                         if start_date <= today:
-                            plan['symbols_needing_update'].append(symbol)
-                            plan['update_ranges'][symbol] = (start_date, self.end_date)
+                            # Check if there's a meaningful gap (more than 3 days)
+                            # This prevents fetching non-existent weekend data
+                            days_diff = (datetime.strptime(self.end_date, '%Y-%m-%d') - latest_dt).days
+
+                            if days_diff > 3:
+                                plan['symbols_needing_update'].append(symbol)
+                                plan['update_ranges'][symbol] = (start_date, self.end_date)
+
+                            else:
+                                # Too close to end_date, likely weekend - mark as up to date
+                                plan['symbols_up_to_date'].append(symbol)
+
                         else:
                             plan['symbols_up_to_date'].append(symbol)
                     except Exception as e:

@@ -8,7 +8,7 @@ from pathlib import Path
 from dataclasses import dataclass
 from typing import Optional
 import subprocess
-from datetime import datetime
+from datetime import datetime, timedelta
 
 @dataclass
 class AppConfig:
@@ -27,8 +27,7 @@ class AppConfig:
     # Data source
     COMPANIES_CSV: Path = DATA_DIR / "stock_list.csv"  
     START_DATE: str = "2010-01-01"
-    END_DATE: str = datetime.now().strftime('%Y-%m-%d')  # Dynamic end date - TODAY
-    
+    END_DATE: str = (datetime.now() - timedelta(days=1)).strftime('%Y-%m-%d')  # Dynamic end date - YESTERDAY
     # Update settings  
     UPDATE_SCHEDULE_WEEKDAY: int = 0  # Sunday
     UPDATE_SCHEDULE_HOUR: int = 9
