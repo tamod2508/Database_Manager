@@ -49,18 +49,6 @@ class DataViewer:
         )
         self.show_all_check.pack(side="left", padx=20)
 
-        # NEW: Show only missing data checkbox
-        self.show_missing_var = tk.BooleanVar(value=False)
-        self.show_missing_check = ctk.CTkCheckBox(
-            controls_frame,
-            text="Show only missing data (is_missing=TRUE)",
-            variable=self.show_missing_var,
-            command=self.on_show_missing_change,
-            fg_color="red",
-            hover_color="darkred"
-        )
-        self.show_missing_check.pack(side="left", padx=20)
-
         # Info label
         self.info_label = ctk.CTkLabel(controls_frame, text="Select a ticker to view data")
         self.info_label.pack(side="left", padx=20)
@@ -70,7 +58,7 @@ class DataViewer:
         table_frame.pack(fill="both", expand=True, padx=10, pady=10)
 
         # Create treeview
-        columns = ['Date', 'Open', 'High', 'Low', 'Close', 'Volume', 'Missing']
+        columns = ['Date', 'Open', 'High', 'Low', 'Close', 'Volume']
         self.tree = ttk.Treeview(table_frame, columns=columns, show='headings', height=20)
 
         # Configure columns
@@ -80,14 +68,12 @@ class DataViewer:
                 self.tree.column(col, width=100, anchor='center')
             elif col == 'Volume':
                 self.tree.column(col, width=120, anchor='e')
-            elif col == 'Missing':
-                self.tree.column(col, width=80, anchor='center')
             else:
                 self.tree.column(col, width=80, anchor='e')
 
-        # Configure tags for missing data highlighting
-        self.tree.tag_configure('missing', background='#FFEBEE', foreground='#C62828')  # Light red
-        self.tree.tag_configure('real', background='#E8F5E9', foreground='#2E7D32')     # Light green
+        # Configure tags for data quality highlighting (optional - can show NULL values)
+        self.tree.tag_configure('complete', background='#E8F5E9', foreground='#2E7D32')  # Light green
+        self.tree.tag_configure('has_nulls', background='#FFF9C4', foreground='#F57C00')  # Light yellow
 
         # Scrollbars
         v_scrollbar = ttk.Scrollbar(table_frame, orient="vertical", command=self.tree.yview)
@@ -122,7 +108,7 @@ class DataViewer:
             logger.error(f"Failed to update data viewer: {e}")
 
     def update_table_view(self):
-        """Update table view with current data and filters"""
+        """Update table view with current data - Simplified without missing data filter"""
         try:
             # Clear existing data
             for item in self.tree.get_children():
@@ -134,18 +120,6 @@ class DataViewer:
                 return
 
             ticker_data = self.current_data[self.current_data['ticker'] == ticker].copy()
-
-            # Apply missing data filter
-            show_missing_only = self.show_missing_var.get()
-            if show_missing_only:
-                # Filter to show only missing data (is_missing=TRUE)
-                if 'is_missing' in ticker_data.columns:
-                    ticker_data = ticker_data[ticker_data['is_missing']]
-                else:
-                    # Column doesn't exist yet, show nothing
-                    self.info_label.configure(text=f"{ticker}: No is_missing column found. Run database migration.")
-                    return
-
             ticker_data = ticker_data.sort_values('date', ascending=False)
 
             # Determine how many records to show
@@ -159,20 +133,15 @@ class DataViewer:
 
             # Add data to tree
             record_count = 0
-            missing_count = 0
-            real_count = 0
+            rows_with_nulls = 0
 
             for _, row in display_data.iterrows():
-                # Check if this is missing data
-                is_missing = row.get('is_missing', False)
-                tag = 'missing' if is_missing else 'real'
+                # Check if row has any NULL values
+                has_nulls = any(pd.isna(row[col]) for col in ['open', 'high', 'low', 'close', 'volume'])
+                tag = 'has_nulls' if has_nulls else 'complete'
 
-                if is_missing:
-                    missing_count += 1
-                    missing_icon = "✗"
-                else:
-                    real_count += 1
-                    missing_icon = "✓"
+                if has_nulls:
+                    rows_with_nulls += 1
 
                 values = [
                     row['date'].strftime('%Y-%m-%d') if pd.notna(row['date']) else '',
@@ -180,8 +149,7 @@ class DataViewer:
                     f"{row['high']:.2f}" if pd.notna(row['high']) else 'NULL',
                     f"{row['low']:.2f}" if pd.notna(row['low']) else 'NULL',
                     f"{row['close']:.2f}" if pd.notna(row['close']) else 'NULL',
-                    f"{int(row['volume']):,}" if pd.notna(row['volume']) else 'NULL',
-                    missing_icon
+                    f"{int(row['volume']):,}" if pd.notna(row['volume']) else 'NULL'
                 ]
                 self.tree.insert('', 'end', values=values, tags=(tag,))
                 record_count += 1
@@ -193,15 +161,15 @@ class DataViewer:
 
             # Final info update
             date_range = f"{ticker_data['date'].min().date()} to {ticker_data['date'].max().date()}"
+            total_in_ticker = len(ticker_data)
 
-            if show_missing_only:
+            if rows_with_nulls > 0:
                 self.info_label.configure(
-                    text=f"{ticker}: Showing {missing_count:,} missing records ({date_range}) - {limit_text}"
+                    text=f"{ticker}: {total_in_ticker:,} total records ({date_range}) - showing {limit_text} | {rows_with_nulls} rows with NULL values"
                 )
             else:
-                total_in_ticker = len(ticker_data)
                 self.info_label.configure(
-                    text=f"{ticker}: {total_in_ticker:,} total records ({date_range}) - showing {limit_text} | Real: {real_count:,} | Missing: {missing_count:,}"
+                    text=f"{ticker}: {total_in_ticker:,} total records ({date_range}) - showing {limit_text} | All data complete ✓"
                 )
 
         except Exception as e:
@@ -214,11 +182,4 @@ class DataViewer:
 
     def on_show_all_change(self):
         """Handle show all data checkbox change"""
-        self.update_table_view()
-
-    def on_show_missing_change(self):
-        """Handle show missing data checkbox change"""
-        # If showing missing only, explain what this means
-        if self.show_missing_var.get():
-            logger.info("Filtering to show only rows with is_missing=TRUE")
         self.update_table_view()

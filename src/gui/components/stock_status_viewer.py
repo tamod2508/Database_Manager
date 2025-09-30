@@ -102,10 +102,40 @@ class StockStatusViewer:
         self.tree.column('Completeness', width=110, anchor='center')
         self.tree.column('Missing Days', width=110, anchor='center')
 
+        # Add tooltip/info for Missing Days column
+        # Create info button next to the header
+        info_text = (
+            "ℹ️ About 'Missing Days':\n\n"
+            "This shows the approximate number of trading days missing from the expected date range.\n\n"
+            "Calculated as: (Years × 252 trading days) - (Actual records)\n\n"
+            "Why data might be <100%:\n"
+            "• Market holidays (~10-12 days/year)\n"
+            "• Stock listing mid-year\n"
+            "• yfinance data gaps\n"
+            "• Trading suspensions\n\n"
+            "These are NOT actual rows in the database - they're date gaps that don't exist.\n\n"
+            "97%+ completeness is considered excellent."
+        )
+
+        # Store tooltip text for potential hover implementation
+        self.missing_days_tooltip = info_text
+
         # Configure tags for status colors
         self.tree.tag_configure('complete', background='#E8F5E9', foreground='#2E7D32')  # Green
         self.tree.tag_configure('good', background='#FFF9C4', foreground='#F57C00')      # Yellow
         self.tree.tag_configure('incomplete', background='#FFEBEE', foreground='#C62828') # Red
+
+        # Info button for Missing Days explanation
+        missing_days_info_btn = ctk.CTkButton(
+            header_frame,
+            text="ℹ️ About Missing Days",
+            command=self.show_missing_days_info,
+            height=32,
+            width=160,
+            fg_color="gray40",
+            hover_color="gray30"
+        )
+        missing_days_info_btn.pack(side="right", padx=5)
 
         # Scrollbars
         v_scrollbar = ttk.Scrollbar(table_frame, orient="vertical", command=self.tree.yview)
@@ -282,6 +312,35 @@ class StockStatusViewer:
     def load_initial_data(self):
         """Load initial status data"""
         self.refresh_status()
+
+    def show_missing_days_info(self):
+        """Show information about Missing Days column"""
+        from tkinter import messagebox
+
+        info_text = (
+            "ℹ️  Understanding 'Missing Days'\n\n"
+            "This column shows approximate trading days missing from the expected range.\n\n"
+            "📊 Calculation:\n"
+            "Missing Days = (Years × 252) - (Actual records)\n"
+            "• 252 = Average trading days per year\n"
+            "• Years = Date range of stock data\n\n"
+            "⚠️  Important:\n"
+            "These are NOT actual rows in the database!\n"
+            "They represent date gaps where yfinance has no data.\n\n"
+            "🔍 Common reasons for <100% completeness:\n"
+            "• Market holidays (~10-12 days/year in India)\n"
+            "• Stock listed mid-year\n"
+            "• yfinance data quality gaps\n"
+            "• Trading suspensions (corporate actions)\n"
+            "• IPO/listing date calculations\n\n"
+            "✅ What's considered good:\n"
+            "• ≥97% = Complete (accounts for holidays)\n"
+            "• 90-96% = Good (minor gaps)\n"
+            "• <90% = May need attention\n\n"
+            "This is normal and expected - most stocks will be 97-100%!"
+        )
+
+        messagebox.showinfo("About Missing Days", info_text)
 
     def delete_selected_stock(self):
         """Delete data for the selected stock(s) from database"""
