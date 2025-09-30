@@ -449,7 +449,7 @@ Logs: {config.LOGS_DIR}"""
         except Exception as e:
             logger.error(f"Menu bar: Could not save last update time: {e}")
 
-    @rumps.clicked("Check Update Plan")
+
     def check_update_plan(self, _):
         """Show update plan without executing"""
         try:
@@ -481,7 +481,7 @@ Logs: {config.LOGS_DIR}"""
             self.clear_loading_state()
             rumps.alert("Error", f"Failed to get update plan: {e}")
 
-    @rumps.clicked("Incremental Update")
+
     def incremental_update(self, _):
         """Start incremental data update"""
         if self.is_updating:
@@ -513,7 +513,7 @@ Logs: {config.LOGS_DIR}"""
         if response == 1:  # OK clicked
             self.start_update_background(incremental=True)
 
-    @rumps.clicked("Full Refresh")
+
     def full_refresh(self, _):
         """Start full data refresh with warning"""
         if self.is_updating:
