@@ -185,9 +185,16 @@ class DataFetcher:
         failed_fetches = 0
         all_data = []
         skipped_fetches = len(symbols) - len(symbols_to_process) if not full_refresh else 0
+        symbols_to_fetch_count = len(symbols_to_process)
+        # Set delay based on workload
+        if symbols_to_fetch_count > 1000:
+            per_stock_delay = 0.5  # Large batch - be careful
+        else:
+            per_stock_delay = 0.1  # Small batch - minimal delay
         # Use ThreadPoolExecutor with optimal worker count, submit all 500 stocks to the threadpool so they can process in parallel
         with ThreadPoolExecutor(max_workers=self.max_workers) as executor:
         # Submit all tasks with their specific date ranges
+
             future_to_symbol = {}
             for symbol in symbols_to_process:
                 start_date, end_date = symbol_date_ranges[symbol]
@@ -204,6 +211,7 @@ class DataFetcher:
                     if data is not None and not data.empty:
                         all_data.append(data)
                         successful_fetches += 1
+                        time.sleep(per_stock_delay)
                         logger.info(f"Successfully fetched {symbol}: {len(data)} records")
                     else:
                         if not full_refresh:
@@ -221,6 +229,10 @@ class DataFetcher:
                 if update_callback:
                     progress = (successful_fetches + failed_fetches) / len(symbols_to_process)
                     update_callback(progress, symbol, successful_fetches, failed_fetches)
+
+                if successful_fetches % 500 == 0 and successful_fetches > 0:
+                    logger.info("Processed 500 stocks, pausing 30 seconds to avoid rate limits...")
+                    time.sleep(60)
 
         # Combine all data with additional timezone safety
         if all_data: #Check if we have any successful data to process

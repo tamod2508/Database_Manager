@@ -89,7 +89,7 @@ class StockStatusViewer:
         self.tree.heading('Records', text='Total Records')
         self.tree.heading('Earliest Date', text='Earliest Date')
         self.tree.heading('Latest Date', text='Latest Date')
-        self.tree.heading('Date Range', text='Days of Data')
+        self.tree.heading('Date Range', text='Expected data')
         self.tree.heading('Completeness', text='Completeness %')
         self.tree.heading('Missing Days', text='Missing Days')
 
@@ -202,8 +202,11 @@ class StockStatusViewer:
                 # Calculate missing days (approximate)
                 years = (row['last_date'] - row['first_date']).days / 365.25
                 expected_days = int(years * 252)  # ~252 trading days/year
-                actual_days = row['real_records']
+                actual_days = row['total_records']
                 missing_days = max(0, expected_days - actual_days)
+                years = (row['last_date'] - row['first_date']).days / 365.25
+                expected_days = int(years * 252)
+
 
                 completeness = row['completeness_pct']
 
@@ -213,7 +216,7 @@ class StockStatusViewer:
                     'record_count': row['total_records'],
                     'earliest_date': row['first_date'].strftime('%Y-%m-%d'),
                     'latest_date': row['last_date'].strftime('%Y-%m-%d'),
-                    'days_range': actual_days,
+                    'days_range': expected_days,
                     'completeness_pct': completeness,
                     'missing_days': missing_days
                 })

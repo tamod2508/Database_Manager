@@ -27,7 +27,7 @@ class AppConfig:
     # Data source
     COMPANIES_CSV: Path = DATA_DIR / "stock_list.csv"  
     START_DATE: str = "2010-01-01"
-    END_DATE: str = (datetime.now() - timedelta(days=1)).strftime('%Y-%m-%d')  # Dynamic end date - YESTERDAY
+    END_DATE: str = (datetime.now() - timedelta(days=2)).strftime('%Y-%m-%d')  # Dynamic end date - YESTERDAY
     # Update settings  
     UPDATE_SCHEDULE_WEEKDAY: int = 0  # Sunday
     UPDATE_SCHEDULE_HOUR: int = 9

@@ -99,8 +99,8 @@ class MainWindow:
             text="Full Refresh",
             command=self.start_full_refresh,
             height=35,
-            fg_color="orange",
-            hover_color="darkorange"
+            fg_color="red",
+            hover_color="darkred"
         )
         self.full_refresh_button.grid(row=3, column=0, padx=20, pady=5, sticky="ew")
 
