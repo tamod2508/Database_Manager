@@ -1,10 +1,10 @@
 """
-Main GUI application window - Fixed Refresh Functionality
+Main GUI application window - Fixed Refresh Functionality and Progress Tracking
 """
 
 import customtkinter as ctk
 import tkinter as tk
-from tkinter import  messagebox
+from tkinter import messagebox
 import pandas as pd
 import threading
 from typing import Dict
@@ -244,16 +244,30 @@ class MainWindow:
 
     def _update_progress(self, progress: float, symbol: str,
                         successful: int, failed: int):
-        """Update progress callback"""
+        """Update progress callback - Enhanced to show database insertion phase"""
         def update_ui():
-            self.progress_var.set(progress)
-            self.status_var.set(f"Processing {symbol}... ({successful} success, {failed} failed)")
+            # Fetching is 0-90% of progress, insertion is 90-100%
+            fetch_progress = progress * 0.9
+            self.progress_var.set(fetch_progress)
+            self.status_var.set(f"Fetching {symbol}... ({successful} success, {failed} failed)")
 
         self.root.after(0, update_ui)
 
     def _update_complete(self, success: bool, result: Dict, incremental: bool):
-        """Handle update completion"""
+        """Handle update completion - Fixed to show popup"""
         self.is_updating = False
+
+        # Show database insertion progress
+        def show_insertion_progress():
+            self.status_var.set("Inserting data into database...")
+            self.progress_var.set(0.95)
+            self.root.update_idletasks()
+
+        self.root.after(0, show_insertion_progress)
+
+        # Small delay to show insertion message
+        import time
+        time.sleep(0.5)
 
         # Restore UI state
         self.update_button.configure(state="normal", text="Update Data")
@@ -275,20 +289,30 @@ class MainWindow:
                 # No new data
                 self.status_var.set("All data is up to date - no new records fetched")
                 message_text = "No new data was available to fetch.\n\nAll symbols are up to date!"
+                title = "No Updates Needed"
             else:
                 self.status_var.set(f"{mode.title()} complete: {total_records:,} records in {duration:.1f}s")
 
-                message_text = f"{mode.title()} completed successfully!\n\n"
-                message_text += f"Successfully updated: {successful_fetches} symbols\n"
-                message_text += f"New records added: {total_records:,}\n"
+                # BUILD THE POPUP MESSAGE
+                message_text = f"✅ {mode.title()} completed successfully!\n\n"
+                message_text += f"📊 Successfully updated: {successful_fetches} symbols\n"
+                message_text += f"📥 New records added: {total_records:,}\n"
                 if skipped_fetches > 0:
-                    message_text += f"Symbols already up to date: {skipped_fetches}\n"
-                message_text += f"Duration: {duration:.1f} seconds"
+                    message_text += f"✓ Symbols already up to date: {skipped_fetches}\n"
+                message_text += f"⏱️  Duration: {duration:.1f} seconds\n"
+
+                # Add performance metrics
+                records_per_sec = result.get('records_per_second', 0)
+                if records_per_sec > 0:
+                    message_text += f"⚡ Performance: {records_per_sec:.0f} records/second"
+
+                title = "Update Complete"
 
             # Mark data as updated in status panel
             self.status_panel.mark_data_updated()
 
-            messagebox.showinfo("Update Complete", message_text)
+            # SHOW THE POPUP
+            messagebox.showinfo(title, message_text)
 
             # Automatically refresh the display after successful update
             if total_records > 0:
@@ -402,8 +426,8 @@ class MainWindow:
             "Only use this if:\n"
             "• You want to rebuild the entire database\n"
             "• You suspect data corruption\n"
-            "• You changed the date range settings"
-
+            "• You changed the date range settings\n\n"
+            "Continue?"
         )
 
         if result:
@@ -411,7 +435,7 @@ class MainWindow:
             confirm = messagebox.askyesno(
                 "Final Confirmation",
                 "Are you absolutely sure you want to fetch ALL data from scratch?\n\n"
-                "This cannot be undone and."
+                "This cannot be undone."
             )
             if confirm:
                 self._start_update_thread(incremental=False)

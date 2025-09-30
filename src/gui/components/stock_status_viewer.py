@@ -1,6 +1,6 @@
 """
-Stock-wise status viewer component for GUI
-Shows data availability status for each company
+Stock-wise status viewer component for GUI - Enhanced with Missing Days
+Shows data availability status for each company including missing days count
 """
 
 import customtkinter as ctk
@@ -73,14 +73,14 @@ class StockStatusViewer:
         table_frame = ctk.CTkFrame(self.frame)
         table_frame.pack(fill="both", expand=True, padx=10, pady=(0, 10))
 
-        # Create Treeview with columns
-        columns = ('Symbol', 'Status', 'Records', 'Earliest Date', 'Latest Date', 'Date Range')
+        # Create Treeview with columns (ADDED: Completeness and Missing Days)
+        columns = ('Symbol', 'Status', 'Records', 'Earliest Date', 'Latest Date', 'Date Range', 'Completeness', 'Missing Days')
         self.tree = ttk.Treeview(
             table_frame,
             columns=columns,
             show='headings',
             height=20,
-            selectmode='extended'  # Enable multiple selection
+            selectmode='extended'
         )
 
         # Configure columns
@@ -90,6 +90,8 @@ class StockStatusViewer:
         self.tree.heading('Earliest Date', text='Earliest Date')
         self.tree.heading('Latest Date', text='Latest Date')
         self.tree.heading('Date Range', text='Days of Data')
+        self.tree.heading('Completeness', text='Completeness %')
+        self.tree.heading('Missing Days', text='Missing Days')
 
         self.tree.column('Symbol', width=100, anchor='center')
         self.tree.column('Status', width=80, anchor='center')
@@ -97,10 +99,13 @@ class StockStatusViewer:
         self.tree.column('Earliest Date', width=120, anchor='center')
         self.tree.column('Latest Date', width=120, anchor='center')
         self.tree.column('Date Range', width=100, anchor='center')
+        self.tree.column('Completeness', width=110, anchor='center')
+        self.tree.column('Missing Days', width=110, anchor='center')
 
-        # Configure tags for status colors with better contrast
-        self.tree.tag_configure('available', background='#E8F5E9', foreground='#2E7D32')  # Very light green bg, dark green text
-        self.tree.tag_configure('missing', background='#FFEBEE', foreground='#C62828')    # Very light red bg, dark red text
+        # Configure tags for status colors
+        self.tree.tag_configure('complete', background='#E8F5E9', foreground='#2E7D32')  # Green
+        self.tree.tag_configure('good', background='#FFF9C4', foreground='#F57C00')      # Yellow
+        self.tree.tag_configure('incomplete', background='#FFEBEE', foreground='#C62828') # Red
 
         # Scrollbars
         v_scrollbar = ttk.Scrollbar(table_frame, orient="vertical", command=self.tree.yview)
@@ -133,64 +138,60 @@ class StockStatusViewer:
 
         ctk.CTkRadioButton(
             filter_frame,
-            text="Data Available",
+            text="Complete (≥97%)",
             variable=self.filter_var,
-            value="available",
+            value="complete",
             command=self.apply_filter
         ).pack(side="left", padx=5)
 
         ctk.CTkRadioButton(
             filter_frame,
-            text="Missing Data",
+            text="Incomplete (<97%)",
             variable=self.filter_var,
-            value="missing",
+            value="incomplete",
             command=self.apply_filter
         ).pack(side="left", padx=5)
 
     def refresh_status(self):
-        """Refresh status data from database"""
+        """Refresh status data from database using new stats methods"""
         try:
-            logger.info("Refreshing stock status data...")
+            logger.info("Refreshing stock status data with completeness stats...")
 
-            # Get list of all symbols from CSV
-            from ...config.settings import config
-            symbols_df = pd.read_csv(config.COMPANIES_CSV)
-            all_symbols = symbols_df['Symbol'].tolist()
+            # Get comprehensive stats from database
+            stats_df = db_manager.get_stock_data_stats()
 
-            # Get database stats per symbol
+            if stats_df.empty:
+                self.summary_label.configure(text="No data available")
+                logger.info("No data found in database")
+                return
+
+            # Convert to format expected by display
             status_list = []
 
-            for symbol in all_symbols:
-                stock_data = db_manager.get_stock_data(ticker=symbol)
+            for _, row in stats_df.iterrows():
+                # Calculate missing days (approximate)
+                years = (row['last_date'] - row['first_date']).days / 365.25
+                expected_days = int(years * 252)  # ~252 trading days/year
+                actual_days = row['real_records']
+                missing_days = max(0, expected_days - actual_days)
 
-                if not stock_data.empty:
-                    earliest = stock_data['date'].min()
-                    latest = stock_data['date'].max()
-                    record_count = len(stock_data)
-                    days_range = (latest - earliest).days
+                completeness = row['completeness_pct']
 
-                    status_list.append({
-                        'symbol': symbol,
-                        'has_data': True,
-                        'record_count': record_count,
-                        'earliest_date': earliest.strftime('%Y-%m-%d'),
-                        'latest_date': latest.strftime('%Y-%m-%d'),
-                        'days_range': days_range
-                    })
-                else:
-                    status_list.append({
-                        'symbol': symbol,
-                        'has_data': False,
-                        'record_count': 0,
-                        'earliest_date': 'N/A',
-                        'latest_date': 'N/A',
-                        'days_range': 0
-                    })
+                status_list.append({
+                    'symbol': row['ticker'],
+                    'has_data': True,
+                    'record_count': row['total_records'],
+                    'earliest_date': row['first_date'].strftime('%Y-%m-%d'),
+                    'latest_date': row['last_date'].strftime('%Y-%m-%d'),
+                    'days_range': actual_days,
+                    'completeness_pct': completeness,
+                    'missing_days': missing_days
+                })
 
             self.status_data = pd.DataFrame(status_list)
             self.update_display()
 
-            logger.info(f"Status refreshed for {len(all_symbols)} symbols")
+            logger.info(f"Status refreshed for {len(stats_df)} symbols")
 
         except Exception as e:
             logger.error(f"Failed to refresh status: {e}")
@@ -208,14 +209,22 @@ class StockStatusViewer:
 
         # Calculate summary
         total_symbols = len(self.status_data)
-        symbols_with_data = len(self.status_data[self.status_data['has_data']])
-        symbols_missing = total_symbols - symbols_with_data
+        complete_stocks = len(self.status_data[self.status_data['completeness_pct'] >= 97])
+        good_stocks = len(self.status_data[(self.status_data['completeness_pct'] >= 90) &
+                                           (self.status_data['completeness_pct'] < 97)])
+        incomplete_stocks = len(self.status_data[self.status_data['completeness_pct'] < 90])
+
+        avg_completeness = self.status_data['completeness_pct'].mean()
+        total_missing = self.status_data['missing_days'].sum()
 
         # Update summary
         summary_text = (
             f"Total Symbols: {total_symbols} | "
-            f"Data Available: {symbols_with_data} | "
-            f"Missing Data: {symbols_missing}"
+            f"Complete (≥97%): {complete_stocks} | "
+            f"Good (90-96%): {good_stocks} | "
+            f"Incomplete (<90%): {incomplete_stocks} | "
+            f"Avg Completeness: {avg_completeness:.1f}% | "
+            f"Total Missing Days: {total_missing:,}"
         )
         self.summary_label.configure(text=summary_text)
 
@@ -234,17 +243,28 @@ class StockStatusViewer:
         filter_value = self.filter_var.get()
 
         # Filter data based on selection
-        if filter_value == "available":
-            filtered_data = self.status_data[self.status_data['has_data']]
-        elif filter_value == "missing":
-            filtered_data = self.status_data[~self.status_data['has_data']]
+        if filter_value == "complete":
+            filtered_data = self.status_data[self.status_data['completeness_pct'] >= 97]
+        elif filter_value == "incomplete":
+            filtered_data = self.status_data[self.status_data['completeness_pct'] < 97]
         else:  # all
             filtered_data = self.status_data
 
         # Populate tree
         for _, row in filtered_data.iterrows():
-            status_icon = "✓" if row['has_data'] else "✗"
-            tag = 'available' if row['has_data'] else 'missing'
+            completeness = row['completeness_pct']
+
+            # Determine status icon and tag (adjusted for market holidays)
+            # 97%+ is considered complete (accounts for ~10-12 market holidays per year)
+            if completeness >= 97:
+                status_icon = "✓"
+                tag = 'complete'
+            elif completeness >= 90:
+                status_icon = "⚠"
+                tag = 'good'
+            else:
+                status_icon = "✗"
+                tag = 'incomplete'
 
             values = (
                 row['symbol'],
@@ -252,7 +272,9 @@ class StockStatusViewer:
                 f"{row['record_count']:,}" if row['record_count'] > 0 else "-",
                 row['earliest_date'],
                 row['latest_date'],
-                str(row['days_range']) if row['days_range'] > 0 else "-"
+                str(row['days_range']) if row['days_range'] > 0 else "-",
+                f"{completeness:.1f}%",
+                f"{row['missing_days']:,}" if row['missing_days'] > 0 else "0"
             )
 
             self.tree.insert('', 'end', values=values, tags=(tag,))
@@ -265,7 +287,7 @@ class StockStatusViewer:
         """Delete data for the selected stock(s) from database"""
         from tkinter import messagebox
 
-        # Get selected items (now can be multiple)
+        # Get selected items
         selections = self.tree.selection()
 
         if not selections:
@@ -309,7 +331,7 @@ class StockStatusViewer:
             confirm_msg = f"Are you sure you want to delete data for {stock_count} stocks?\n\n"
             confirm_msg += f"Total records to delete: {total_records:,}\n\n"
             confirm_msg += "Stocks:\n"
-            for stock in stocks_to_delete[:5]:  # Show first 5
+            for stock in stocks_to_delete[:5]:
                 confirm_msg += f"  • {stock['symbol']}: {stock['records']:,} records\n"
             if stock_count > 5:
                 confirm_msg += f"  ... and {stock_count - 5} more\n\n"
