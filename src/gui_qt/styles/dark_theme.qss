@@ -158,13 +158,13 @@ QTabBar::tab {
     background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
                                stop:0 #2d3441, stop:1 #1a1d22);
     border: 1px solid #3a4558;
-    padding: 16px 32px;
-    margin: 0 4px;
-    border-radius: 12px 12px 0 0;
+    padding: 10px 20px;
+    margin: 0 3px;
+    border-radius: 8px 8px 0 0;
     font-weight: 600;
-    min-width: 140px;
+    min-width: 100px;
     color: #979dac;
-    font-size: 14px;
+    font-size: 13px;
 }
 
 QTabBar::tab:selected {
@@ -172,7 +172,7 @@ QTabBar::tab:selected {
                                stop:0 #0570d8, stop:1 #0466c8);
     color: #ffffff;
     border-bottom: none;
-    margin-top: -2px;
+    margin-top: -1px;
     font-weight: 700;
     border-color: #1f85fa;
 }

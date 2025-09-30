@@ -214,6 +214,7 @@ class MainWindow(QMainWindow):
         """Load initial data after UI is ready"""
         # Use QTimer for delayed loading (same pattern as your existing GUI)
         QTimer.singleShot(1000, self.refresh_data)
+        # Stock status loads on demand when user clicks the tab
         
     def refresh_data(self):
         """Refresh data from database (same logic as your existing GUI)"""
