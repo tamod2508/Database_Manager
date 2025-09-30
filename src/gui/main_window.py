@@ -87,7 +87,7 @@ class MainWindow:
             self.sidebar,
             text="Update Data",
             command=self.start_incremental_update,
-            height=40,
+            height=35,
             fg_color="green",
             hover_color="darkgreen"
         )
