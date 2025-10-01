@@ -18,6 +18,7 @@ from .components.status_panel import StatusPanel
 from .components.settings_panel import SettingsPanel
 from .components.stock_status_viewer import StockStatusViewer
 
+
 logger = get_logger(__name__, "GUI.log")
 
 class MainWindow:
